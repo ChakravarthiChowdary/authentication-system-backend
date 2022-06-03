@@ -46,6 +46,7 @@ export const signInUser: RequestHandler = async (req, res, next) => {
         lastPasswordChanged: user.lastPasswordChanged,
         isDisabled: user.isDisabled,
         noOfDaysLeftToChangePassword: user.noOfDaysLeftToChangePassword,
+        photoUrl: user.photoUrl,
       });
     }
 
@@ -82,6 +83,7 @@ export const signInUser: RequestHandler = async (req, res, next) => {
       token,
       expiresIn,
       passwordChangeRequired: false,
+      photoUrl: user.photoUrl,
     });
   } catch (error) {
     next(error);
@@ -198,6 +200,74 @@ export const uploadProfileImage: RequestHandler = async (req, res, next) => {
     });
 
     res.status(200).json(updatedImage);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePassword: RequestHandler = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword, userId, email } =
+      req.body;
+
+    const user = await User.findById(userId).exec();
+
+    if (!user) {
+      return next(new HttpError("Something wrong with authentication", 403));
+    }
+
+    if (currentPassword === newPassword) {
+      return next(new HttpError("New password should be different from old."));
+    }
+
+    if (confirmPassword !== newPassword) {
+      return next(new HttpError("Passwords does not match.", 400));
+    }
+
+    const isPasswordValid = await bcryptjs.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return next(new HttpError("Your current password is incorrect.", 403));
+    }
+
+    const hashedPassword = await bcryptjs.hash(newPassword, 12);
+
+    await User.findByIdAndUpdate(userId, {
+      password: hashedPassword,
+      lastPasswordChanged: new Date(),
+      lastLoggedIn: new Date(),
+      noOfDaysLeftToChangePassword: 30,
+    });
+
+    const updatedUser = await User.findById(userId).exec();
+
+    if (!updatedUser) {
+      return next(new HttpError("Something wrong happened with server"));
+    }
+
+    const token = JWT.sign(
+      {
+        email,
+        id: updatedUser.id,
+        name: updatedUser.name,
+        lastLoggedIn: updatedUser.lastLoggedIn,
+        lastPasswordChanged: updatedUser.lastPasswordChanged,
+        isDisabled: updatedUser.isDisabled,
+      },
+      "THIS_IS_A_REALLY_SUPER_SECRET_KEY",
+      { expiresIn: "1h" }
+    );
+
+    const expiresIn = new Date();
+
+    expiresIn.setTime(expiresIn.getTime() + 60 * 60 * 1000);
+
+    const resultObj = updatedUser.toObject({ getters: true });
+
+    res.status(200).json({ ...resultObj, token });
   } catch (error) {
     next(error);
   }
