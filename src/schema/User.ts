@@ -10,6 +10,9 @@ interface IUser extends Document {
   isDisabled: boolean;
   lastPasswordChanged: Date;
   noOfDaysLeftToChangePassword: number;
+  dateOfBirth: Date;
+  securityQuestion: string;
+  securityAnswer: string;
 }
 
 const uniqueValidator: any = uniqueValidatorPkg;
@@ -23,6 +26,9 @@ const UserSchema: Schema<IUser> = new Schema({
   lastPasswordChanged: { type: Date, required: true },
   isDisabled: { type: Boolean, required: true },
   noOfDaysLeftToChangePassword: { type: Number, required: true },
+  dateOfBirth: { type: Date, required: true },
+  securityQuestion: { type: String, required: true },
+  securityAnswer: { type: String, required: true },
 });
 
 UserSchema.plugin(uniqueValidator);

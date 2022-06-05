@@ -2,6 +2,7 @@ import { Router } from "express";
 import { check } from "express-validator";
 
 import {
+  forgotPassword,
   signInUser,
   signUpUser,
   updatePassword,
@@ -16,23 +17,35 @@ router.post(
   check("password")
     .not()
     .isEmpty()
-    .withMessage("Password should not be left blank."),
+    .withMessage("Password should not be left blank"),
   signInUser
 );
 
 router.post(
   "/signup",
   [
-    check("email").isEmail().withMessage("Email is not valid."),
-    check("name").not().isEmpty().withMessage("Name should not be left blank."),
+    check("email").isEmail().withMessage("Email is not valid"),
+    check("name").not().isEmpty().withMessage("Name should not be left blank"),
     check("password")
       .not()
       .isEmpty()
-      .withMessage("Password should not be left blank."),
+      .withMessage("Password should not be left blank"),
     check("confirmPassword")
       .not()
       .isEmpty()
-      .withMessage("Confirm Password should not be left blank."),
+      .withMessage("Confirm Password should not be left blank"),
+    check("dateOfBirth")
+      .not()
+      .isEmpty()
+      .withMessage("Date of birth should not be left blank"),
+    check("securityQuestion")
+      .not()
+      .isEmpty()
+      .withMessage("Security question should not be left blank"),
+    check("securityAnswer")
+      .not()
+      .isEmpty()
+      .withMessage("Security answer should not be left blank"),
   ],
   signUpUser
 );
@@ -61,6 +74,34 @@ router.post(
       .withMessage("User id should not be left blank"),
   ],
   updatePassword
+);
+
+router.post(
+  "/forgotpassword",
+  [
+    check("email").isEmail().withMessage("Email is not valid"),
+    check("newPassword")
+      .not()
+      .isEmpty()
+      .withMessage("Password should not be left blank"),
+    check("confirmNewPassword")
+      .not()
+      .isEmpty()
+      .withMessage("Confirm password should not be left blank"),
+    check("securityQuestion")
+      .not()
+      .isEmpty()
+      .withMessage("Security Question should not be left blank"),
+    check("securityAnswer")
+      .not()
+      .isEmpty()
+      .withMessage("Security Answer should not be left blank"),
+    check("dateOfBirth")
+      .not()
+      .isEmpty()
+      .withMessage("Date of birth should not be left blank"),
+  ],
+  forgotPassword
 );
 
 export default router;

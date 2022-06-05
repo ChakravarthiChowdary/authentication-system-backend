@@ -22,13 +22,13 @@ export const signInUser: RequestHandler = async (req, res, next) => {
     const user = await User.findOne({ email: email }).exec();
 
     if (!user) {
-      return next(new HttpError("Email or password is incorrect.", 403));
+      return next(new HttpError("Email or password is incorrect", 403));
     }
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
 
     if (!isPasswordValid) {
-      return next(new HttpError("Email or password is incorrect.", 403));
+      return next(new HttpError("Email or password is incorrect", 403));
     }
 
     const noOfDaysLeftToChangePassword: Number = dateDiffInDays(
@@ -98,7 +98,16 @@ export const signUpUser: RequestHandler = async (req, res, next) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, name, password, confirmPassword, photoUrl } = req.body;
+    const {
+      email,
+      name,
+      password,
+      confirmPassword,
+      photoUrl,
+      dateOfBirth,
+      securityAnswer,
+      securityQuestion,
+    } = req.body;
 
     const passwordErrorMessage = checkPassword(password, confirmPassword);
 
@@ -109,7 +118,7 @@ export const signUpUser: RequestHandler = async (req, res, next) => {
     const user = await User.findOne({ email: email }).exec();
 
     if (user) {
-      return next(new HttpError("User already exists, Try logging in,", 400));
+      return next(new HttpError("User already exists, Try logging in", 400));
     }
 
     const hashedPassword = await bcryptjs.hash(password, 12);
@@ -123,6 +132,9 @@ export const signUpUser: RequestHandler = async (req, res, next) => {
       noOfDaysLeftToChangePassword: 30,
       isDisabled: false,
       password: hashedPassword,
+      dateOfBirth,
+      securityAnswer,
+      securityQuestion,
     });
 
     const result = await newUser.save();
@@ -166,7 +178,7 @@ export const uploadProfileImage: RequestHandler = async (req, res, next) => {
     image = req.files.image;
 
     if (!image) {
-      return next(new HttpError("No image attached with body.", 400));
+      return next(new HttpError("No image attached with body", 400));
     }
 
     const extension = image.name.split(".")[1];
@@ -217,11 +229,17 @@ export const updatePassword: RequestHandler = async (req, res, next) => {
     }
 
     if (currentPassword === newPassword) {
-      return next(new HttpError("New password should be different from old."));
+      return next(new HttpError("New password should be different from old"));
     }
 
     if (confirmPassword !== newPassword) {
-      return next(new HttpError("Passwords does not match.", 400));
+      return next(new HttpError("Passwords does not match", 400));
+    }
+
+    const passwordErrorMessage = checkPassword(newPassword, confirmPassword);
+
+    if (passwordErrorMessage !== "") {
+      return next(new HttpError(passwordErrorMessage, 400));
     }
 
     const isPasswordValid = await bcryptjs.compare(
@@ -230,7 +248,7 @@ export const updatePassword: RequestHandler = async (req, res, next) => {
     );
 
     if (!isPasswordValid) {
-      return next(new HttpError("Your current password is incorrect.", 403));
+      return next(new HttpError("Your current password is incorrect", 403));
     }
 
     const hashedPassword = await bcryptjs.hash(newPassword, 12);
@@ -268,6 +286,68 @@ export const updatePassword: RequestHandler = async (req, res, next) => {
     const resultObj = updatedUser.toObject({ getters: true });
 
     res.status(200).json({ ...resultObj, token });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword: RequestHandler = async (req, res, next) => {
+  try {
+    const {
+      email,
+      securityQuestion,
+      securityAnswer,
+      dateOfBirth,
+      newPassword,
+      confirmNewPassword,
+    } = req.body;
+
+    console.log(req.body);
+
+    if (newPassword !== confirmNewPassword) {
+      return next(new HttpError("Passwords should match to update", 400));
+    }
+
+    const user = await User.findOne({ email }).exec();
+
+    if (!user) {
+      return next(new HttpError("Incorrect Data. Cannot change password", 400));
+    }
+
+    if (user.securityQuestion !== securityQuestion.toString()) {
+      return next(new HttpError("Incorrect Data. Cannot change password", 400));
+    }
+
+    if (user.securityAnswer !== securityAnswer) {
+      return next(new HttpError("Incorrect Data. Cannot change password", 400));
+    }
+
+    const savedDate = new Date(user.dateOfBirth);
+    const bodyDate = new Date(dateOfBirth);
+
+    const formatedSavedDate = `${savedDate.getDate()}-${savedDate.getMonth()}-${savedDate.getFullYear()}`;
+    const formatedBodyDate = `${bodyDate.getDate()}-${bodyDate.getMonth()}-${bodyDate.getFullYear()}`;
+
+    if (formatedBodyDate !== formatedSavedDate) {
+      return next(new HttpError("Incorrect Data. Cannot change password", 400));
+    }
+
+    const passwordErrorMessage = checkPassword(newPassword, confirmNewPassword);
+
+    if (passwordErrorMessage !== "") {
+      return next(new HttpError(passwordErrorMessage, 400));
+    }
+
+    const hashedPassword = await bcryptjs.hash(newPassword, 12);
+
+    await User.findByIdAndUpdate(user.id, {
+      password: hashedPassword,
+      lastPasswordChanged: new Date(),
+    });
+
+    res.status(200).json({
+      passwordUpdated: true,
+    });
   } catch (error) {
     next(error);
   }
